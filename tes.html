@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Buat Twibbon Online</title>
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      text-align: center;
+      background: #f8f9fa;
+      padding: 20px;
+    }
+
+    h2 {
+      margin-bottom: 5px;
+    }
+
+    p {
+      color: #555;
+      margin-bottom: 15px;
+    }
+
+    #canvas {
+      width: 100%;
+      max-width: 360px;
+      aspect-ratio: 9 / 16; /* rasio 1080x1920 */
+      border-radius: 10px;
+      margin-top: 15px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.2);
+      cursor: grab;
+      background: #fff;
+    }
+
+    input, button {
+      margin: 8px;
+      padding: 10px 14px;
+      border: none;
+      border-radius: 6px;
+      color: white;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    input[type=file] {
+      background: #0d6efd;
+    }
+
+    #edit {
+      background: #ffc107;
+      color: #000;
+    }
+
+    #download {
+      background: #198754;
+    }
+
+    #edit:disabled,
+    #download:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+  <h2>🖼️ Buat Twibbon Kamu</h2>
+  <p>Upload foto, sesuaikan posisinya, lalu download hasilnya.</p>
+
+  <input type="file" accept="image/*" id="upload">
+  <br>
+  <canvas id="canvas" width="1080" height="1920"></canvas>
+  <br>
+  <button id="edit" disabled>Edit Posisi</button>
+  <button id="download" disabled>Download Hasil</button>
+
+  <script>
+    const upload = document.getElementById('upload');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const editBtn = document.getElementById('edit');
+    const downloadBtn = document.getElementById('download');
+
+    const frame = new Image();
+    frame.src = 'twibbon.png'; // pastikan ukuran PNG 1080x1920
+
+    let img = null;
+    let isEditing = false;
+    let posX = 0, posY = 0, scale = 1;
+    let startX, startY, dragging = false;
+
+    // tampilkan frame default
+    frame.onload = () => drawCanvas();
+
+    function drawCanvas() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (img) {
+        const imgW = img.width * scale;
+        const imgH = img.height * scale;
+        const x = (canvas.width - imgW) / 2 + posX;
+        const y = (canvas.height - imgH) / 2 + posY;
+        ctx.drawImage(img, x, y, imgW, imgH);
+      }
+      ctx.drawImage(frame, 0, 0, canvas.width, canvas.height);
+    }
+
+    // Upload foto
+    upload.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        img = new Image();
+        img.onload = () => {
+          posX = posY = 0;
+          scale = 1;
+          drawCanvas();
+          editBtn.disabled = false;
+          downloadBtn.disabled = false;
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // Mode Edit
+    editBtn.addEventListener('click', () => {
+      isEditing = !isEditing;
+      editBtn.textContent = isEditing ? 'Selesai Edit' : 'Edit Posisi';
+      canvas.style.cursor = isEditing ? 'move' : 'grab';
+    });
+
+    // Geser foto
+    canvas.addEventListener('mousedown', (e) => {
+      if (!isEditing) return;
+      dragging = true;
+      startX = e.offsetX;
+      startY = e.offsetY;
+    });
+
+    canvas.addEventListener('mouseup', () => dragging = false);
+    canvas.addEventListener('mouseleave', () => dragging = false);
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (dragging && isEditing) {
+        posX += e.offsetX - startX;
+        posY += e.offsetY - startY;
+        startX = e.offsetX;
+        startY = e.offsetY;
+        drawCanvas();
+      }
+    });
+
+    // Zoom foto pakai scroll
+    canvas.addEventListener('wheel', (e) => {
+      if (!isEditing) return;
+      e.preventDefault();
+      scale += e.deltaY * -0.001;
+      scale = Math.min(Math.max(0.4, scale), 3);
+      drawCanvas();
+    });
+
+    // --- FIX UNIVERSAL DOWNLOAD ---
+    downloadBtn.addEventListener('click', () => {
+      try {
+        // konversi canvas ke dataURL
+        const imageData = canvas.toDataURL('image/png');
+
+        // buat link download dinamis
+        const link = document.createElement('a');
+        link.href = imageData;
+        link.download = 'twibbon-kamu.png';
+        document.body.appendChild(link);
+
+        // delay sedikit agar Safari/Chrome mobile tidak block
+        setTimeout(() => {
+          link.click();
+          document.body.removeChild(link);
+        }, 200);
+
+      } catch (err) {
+        alert('Browser kamu tidak mendukung download otomatis. Tekan tahan gambar untuk disimpan manual.');
+        console.error(err);
+      }
+    });
+  </script>
+</body>
+</html>
